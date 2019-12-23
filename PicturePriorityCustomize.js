@@ -6,7 +6,7 @@
 // http://opensource.org/licenses/mit-license.php
 // ----------------------------------------------------------------------------
 // Version
-// 1.2.1a 2019/12/23 下層ピクチャが常にタイルより下に表示されるよう改変（チョコワ部）
+// 1.2.1b 2019/12/24 タイル下に表示できる最下層ピクチャ機能を追加（チョコワ部）
 // 1.2.1 2019/05/08 1.2.0の機能がYEP_BattleEngineCore.jsと併用すると無効になる競合を解消
 // 1.2.0 2019/05/02 戦闘画面における下層ピクチャの表示優先度を微調整する機能を追加
 // 1.1.3 2019/01/20 MenuCommonEvent.jsとの競合によるエラーを解消
@@ -101,6 +101,11 @@
  * @default 0
  * @type number
  *
+ * @param 最下層ピクチャ番号
+ * @desc 指定した番号以下のピクチャは下層タイルより下に表示されるようになります。下層ピクチャ番号より小さい数字にしてください。
+ * @default 0
+ * @type number
+ *
  * @param 下層ピクチャZ座標
  * @desc 下層ピクチャのZ座標です。変更することでより細かい表示優先度の調整ができます。
  * @default 1
@@ -131,13 +136,14 @@
  * @option アニメーション
  * @value 1
  *
- * @help ピクチャを上層、中層、下層に分けて表示できます。
+ * @help ピクチャを上層、中層、下層、最下層に分けて表示できます。
  * 上層：ウィンドウより上
  * 中層：デフォルトの優先度
  * 下層：キャラクターより下
+ * 最下層：下層タイルの直下
  *
  * 下層ピクチャに対しては、Z座標を設定することで
- * より細かい表示優先度の調整ができます。
+ * より細かい表示優先度の調整ができます。（最下層ピクチャのZ座標は-1）
  *
  * ※それぞれのプライオリティの値
  * 0 : 下層タイル
@@ -188,6 +194,7 @@
     const param               = {};
     param.upperPictureId      = getParamNumber(['UpperPictureId', '上層ピクチャ番号']);
     param.lowerPictureId      = getParamNumber(['LowerPictureId', '下層ピクチャ番号']);
+    param.BottomPictureId      = getParamNumber(['BottomPictureId', '最下層ピクチャ番号']);
     param.lowerPictureZ       = getParamNumber(['LowerPictureZ', '下層ピクチャZ座標']);
     param.lowerPictureBattleZ = getParamNumber(['LowerPictureBattleZ', '戦闘下層ピクチャZ座標'], 0);
 
@@ -219,6 +226,8 @@
         var height                  = Graphics.boxHeight;
         var x                       = (Graphics.width - width) / 2;
         var y                       = (Graphics.height - height) / 2;
+        this._pictureContainerBottom = new Sprite();
+        this._pictureContainerBottom.setFrame(x, y, width, height);
         this._pictureContainerLower = new Sprite();
         this._pictureContainerLower.setFrame(x, y, width, height);
         this._pictureContainerMiddle = new Sprite();
@@ -228,7 +237,9 @@
         var pictureArray = this._pictureContainer.children.clone();
         pictureArray.forEach(function(picture) {
             var pictureId = picture.getPictureId();
-            if (pictureId <= param.lowerPictureId) {
+            if (pictureId <= param.BottomPictureId) {
+                this._pictureContainerBottom.addChild(picture);
+            } else if (pictureId <= param.lowerPictureId) {
                 this._pictureContainerLower.addChild(picture);
             } else if (pictureId >= param.upperPictureId) {
                 this._pictureContainerUpper.addChild(picture);
@@ -237,6 +248,7 @@
             }
         }, this);
         this._pictureContainer.children = pictureArray;
+        this.setBottomPictureContainer();
         this.setLowerPictureContainer();
         this.setMiddlePictureContainer();
     };
@@ -253,13 +265,21 @@
         this.addChild(this._pictureContainerLower);
     };
 
+    Spriteset_Base.prototype.setBottomPictureContainer = function() {
+        this.addChild(this._pictureContainerBottom);
+    };
+
     //=============================================================================
     // Spriteset_Map
-    //  下層ピクチャの位置を設定します。
+    //  最下層ピクチャ・下層ピクチャの位置を設定します。
     //=============================================================================
+    Spriteset_Map.prototype.setBottomPictureContainer = function() {
+        this._pictureContainerBottom.z = -1;
+        this._tilemap.addChild(this._pictureContainerBottom);
+    };
+
     Spriteset_Map.prototype.setLowerPictureContainer = function() {
-    //下層ピクチャのZを-1に固定（チョコワ部）
-        this._pictureContainerLower.z = -1;//param.lowerPictureZ;
+        this._pictureContainerLower.z = param.lowerPictureZ;
         this._tilemap.addChild(this._pictureContainerLower);
     };
 
